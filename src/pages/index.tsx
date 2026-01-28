@@ -1,27 +1,105 @@
 import dynamic from 'next/dynamic';
-import Head from 'next/head';
-import Header from "@/components/common/header/Header";
-import Main from "@/components/common/main/Main";
+import { useWindowManager } from '@/hooks/useWindowManager';
+import { NAV_HEIGHT } from '@/utils/windowPositions';
+import { windowContentMap } from '@/utils/windowContent';
+
+import Nav from '@/components/common/Nav';
+
+const DragWindow = dynamic(
+  () => import('@/components/layout/DragWindow'),
+  { ssr: false, loading: () => <div>Chargement...</div> }
+);
 
 const CustomCursor = dynamic(
-  () => import("@/components/common/customcursor/CustomCursor"),
+  () => import('@/components/common/CustomCursor'),
   { ssr: false }
 );
 
 export default function Home() {
+  const {
+    windows,
+    globalMinimized,
+    draggedWindowId,
+    showExpandHint,
+    screenSize,
+    toggleWindow,
+    closeWindow,
+    handleWindowFocus,
+    toggleMinimizeAll,
+    handleDragMove,
+    handleDragEnd,
+    getInitialPosition,
+    getMinimizedPosition,
+  } = useWindowManager();
+
   return (
     <>
-      <Head>
-        <title>Yovish MOONESAMY - Portfolio | Développeur Web</title>
-        <meta name="description" content="Découvrez mes projets et compétences en développement web. Alternant passionné par Next.js, React et TypeScript." />
-      </Head>
-      {/* ✅ Container principal sans scroll */}
-      <div style={{ height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <CustomCursor />
-        <Header />
-        <Main />
-        {/* Footer supprimé si tu veux, ou garde-le dans la nav */}
-      </div>
+      {/* Custom cursor */}
+      <CustomCursor />
+
+      {/* Bouton carré en bas à gauche */}
+      <button
+        onClick={toggleMinimizeAll}
+        className="fixed bottom-0 left-0 z-50 w-3 h-3 bg-black border-2 border-white hover:bg-gray-800 transition-colors flex items-center justify-center hoverable cursor-none"
+        style={{ left: '3%', bottom: '3%', transform: 'translateX(-50%)' }}
+        aria-label={globalMinimized ? 'Restaurer toutes les fenêtres' : 'Minimiser toutes les fenêtres'}
+      >
+        <span className="text-white text-2xl"></span>
+      </button>
+
+      {/* Rectangle indicateur d'agrandissement */}
+      {showExpandHint && draggedWindowId && (() => {
+        const originalWindow = windows.find((w) => w.id === draggedWindowId);
+        return (
+          <div
+            className="fixed pointer-events-none z-40 border border-black/30 bg-transparent transition-opacity"
+            style={{
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: `${originalWindow?.width || 500}px`,
+              height: `${originalWindow?.height || 400}px`,
+            }}
+          >
+            <div className="flex items-center justify-center h-full">
+              <div className="bg-black/70 text-white/90 px-2 py-1 text-xs font-mono">
+                Relâcher pour agrandir
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {windows.map((window, index) => {
+        const position = window.isMinimized
+          ? getMinimizedPosition(index)
+          : getInitialPosition(window.id, window.width, window.height);
+
+        // Récupérer le composant de contenu selon l'ID
+        const ContentComponent = windowContentMap[window.id];
+
+        return window.visible ? (
+          <DragWindow
+            key={window.id}
+            title={window.title}
+            initialX={position.x}
+            initialY={position.y}
+            width={position.width}
+            height={position.height}
+            maxY={screenSize.height - NAV_HEIGHT}
+            onClose={() => closeWindow(window.id)}
+            onFocus={() => handleWindowFocus(window.id)}
+            onDragMove={(x, y) => handleDragMove(window.id, x, y)}
+            onDragEnd={(x, y) => handleDragEnd(window.id, x, y)}
+            zIndex={window.zIndex}
+            isMinimized={window.isMinimized}
+          >
+            {ContentComponent ? <ContentComponent /> : <p>Contenu non trouvé</p>}
+          </DragWindow>
+        ) : null;
+      })}
+
+      <Nav windows={windows} onToggleWindow={toggleWindow} />
     </>
   );
 }

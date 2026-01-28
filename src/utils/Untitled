@@ -1,0 +1,13 @@
+import AboutSection from '@/components/sections/AboutSection';
+import ParcoursSection from '@/components/sections/ParcoursSection';
+import CompetencesSection from '@/components/sections/CompetencesSection';
+import ProjetsSection from '@/components/sections/ProjetsSection';
+import ContactSection from '@/components/sections/ContactSection';
+
+export const windowContentMap: Record<number, React.ComponentType> = {
+  1: AboutSection,
+  2: ParcoursSection,
+  3: CompetencesSection,
+  4: ProjetsSection,
+  5: ContactSection,
+};
